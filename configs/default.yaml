@@ -24,6 +24,12 @@ backtesting:
   step_size: 168
   random_state: 42
 
+anomaly_evaluation:
+  methods: [residual_zscore, robust_residual, isolation_forest]
+  split_method: chronological
+  test_size: 0.2
+  random_state: 42
+
 api:
   host: 0.0.0.0
   port: 8000

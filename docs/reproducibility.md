@@ -64,6 +64,24 @@ Backtest metrics are written locally to `reports/metrics/backtest_ridge_h24.json
 
 For the local synthetic demo backtest, Ridge regression with a 24-hour horizon produced mean MAE `46.1106`, mean RMSE `65.7001`, mean MAPE `4.5168`, and mean R2 `0.3317` across 5 rolling-origin folds. This is a synthetic demo-data result, not a real grid benchmark. Rolling-origin backtesting is more appropriate for time-series forecasting than a random split because each fold preserves temporal order.
 
+Compare anomaly detection methods on the demo data:
+
+```powershell
+python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies `
+  --input data/raw/demo_energy_weather.csv `
+  --metrics-dir reports/metrics `
+  --forecast-horizon 24 `
+  --model ridge `
+  --split-method chronological `
+  --test-size 0.2 `
+  --methods residual_zscore robust_residual isolation_forest `
+  --random-state 42
+```
+
+Anomaly comparison metrics are written locally to `reports/metrics/anomaly_comparison_h24.json`, which is ignored by Git.
+
+For the local synthetic demo comparison, `residual_zscore` and `robust_residual` missed the labeled anomalies on this split. `isolation_forest` reached recall `0.7391` but detected 248 anomalies, including many false positives. These are synthetic demo-data results, not real grid benchmark results.
+
 Run tests:
 
 ```powershell

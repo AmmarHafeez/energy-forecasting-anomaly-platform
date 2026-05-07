@@ -48,6 +48,44 @@ def score_residuals(
     )
 
 
+def score_robust_residuals(
+    actual: pd.Series | np.ndarray | list[float],
+    predicted: pd.Series | np.ndarray | list[float],
+    *,
+    threshold: float = 3.5,
+    residual_median: float | None = None,
+    residual_mad: float | None = None,
+) -> pd.DataFrame:
+    """Score anomalies from robust residual modified z-scores."""
+
+    actual_values = np.asarray(actual, dtype=float)
+    predicted_values = np.asarray(predicted, dtype=float)
+    if actual_values.shape != predicted_values.shape:
+        raise ValueError("actual and predicted values must have the same shape.")
+    if actual_values.size == 0:
+        raise ValueError("actual and predicted values must not be empty.")
+
+    residuals = actual_values - predicted_values
+    center = float(np.median(residuals)) if residual_median is None else residual_median
+    scale = (
+        float(np.median(np.abs(residuals - center)))
+        if residual_mad is None
+        else residual_mad
+    )
+    if not np.isfinite(scale) or scale == 0.0:
+        scale = _iqr_scale(residuals)
+    if not np.isfinite(scale) or scale == 0.0:
+        scale = 1.0
+
+    modified_z_scores = np.abs(0.6745 * (residuals - center) / scale)
+    return pd.DataFrame(
+        {
+            "anomaly_score": modified_z_scores,
+            "is_anomaly": modified_z_scores >= threshold,
+        }
+    )
+
+
 @dataclass
 class ResidualZScoreDetector:
     """Residual z-score detector fitted on reference residuals."""
@@ -99,6 +137,63 @@ class ResidualZScoreDetector:
             threshold=self.threshold,
             residual_mean=self.residual_mean_,
             residual_std=self.residual_std_,
+        )
+
+
+@dataclass
+class RobustResidualDetector:
+    """Robust residual detector fitted with median absolute deviation."""
+
+    threshold: float = 3.5
+    residual_median_: float | None = None
+    residual_mad_: float | None = None
+
+    def fit(
+        self,
+        actual: pd.Series | np.ndarray | list[float],
+        predicted: pd.Series | np.ndarray | list[float],
+    ) -> RobustResidualDetector:
+        """Fit robust detector statistics from actual and predicted values."""
+
+        actual_values = np.asarray(actual, dtype=float)
+        predicted_values = np.asarray(predicted, dtype=float)
+        if actual_values.shape != predicted_values.shape:
+            raise ValueError("actual and predicted values must have the same shape.")
+        return self.fit_residuals(actual_values - predicted_values)
+
+    def fit_residuals(
+        self,
+        residuals: pd.Series | np.ndarray | list[float],
+    ) -> RobustResidualDetector:
+        """Fit robust detector statistics directly from residuals."""
+
+        residual_values = np.asarray(residuals, dtype=float)
+        if residual_values.size == 0:
+            raise ValueError("residuals must not be empty.")
+        median = float(np.median(residual_values))
+        mad = float(np.median(np.abs(residual_values - median)))
+        if not np.isfinite(mad) or mad == 0.0:
+            mad = _iqr_scale(residual_values)
+        self.residual_median_ = median
+        self.residual_mad_ = mad if np.isfinite(mad) and mad > 0.0 else 1.0
+        LOGGER.info("Fitted robust residual detector")
+        return self
+
+    def score(
+        self,
+        actual: pd.Series | np.ndarray | list[float],
+        predicted: pd.Series | np.ndarray | list[float],
+    ) -> pd.DataFrame:
+        """Score actual and predicted values with fitted robust statistics."""
+
+        if self.residual_median_ is None or self.residual_mad_ is None:
+            raise ValueError("RobustResidualDetector must be fitted before scoring.")
+        return score_robust_residuals(
+            actual,
+            predicted,
+            threshold=self.threshold,
+            residual_median=self.residual_median_,
+            residual_mad=self.residual_mad_,
         )
 
 
@@ -171,3 +266,8 @@ def load_anomaly_detector(path: str | Path) -> Any:
     detector = joblib.load(detector_path)
     LOGGER.info("Loaded anomaly detector from %s", detector_path)
     return detector
+
+
+def _iqr_scale(values: np.ndarray) -> float:
+    q75, q25 = np.percentile(values, [75, 25])
+    return float((q75 - q25) / 1.349)

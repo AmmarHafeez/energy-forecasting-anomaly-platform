@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import pandas as pd
 
-from energy_forecasting_anomaly.anomaly import IsolationForestDetector, ResidualZScoreDetector
+from energy_forecasting_anomaly.anomaly import (
+    IsolationForestDetector,
+    ResidualZScoreDetector,
+    RobustResidualDetector,
+)
 
 
 def test_residual_z_score_detector_flags_large_residual() -> None:
@@ -14,6 +18,25 @@ def test_residual_z_score_detector_flags_large_residual() -> None:
     assert list(scores.columns) == ["anomaly_score", "is_anomaly"]
     assert scores["is_anomaly"].astype(int).tolist() == labels
     assert bool(scores.loc[2, "is_anomaly"])
+
+
+def test_robust_residual_detector_flags_clear_outlier() -> None:
+    detector = RobustResidualDetector(threshold=3.5).fit_residuals([0.0, 0.0, 0.0, 0.0])
+
+    scores = detector.score(actual=[1.0, 1.0, 10.0], predicted=[1.0, 1.0, 1.0])
+
+    assert list(scores.columns) == ["anomaly_score", "is_anomaly"]
+    assert scores["is_anomaly"].astype(int).tolist() == [0, 0, 1]
+
+
+def test_robust_residual_detector_handles_zero_scale_residuals() -> None:
+    detector = RobustResidualDetector(threshold=3.5).fit_residuals([0.0, 0.0, 0.0])
+
+    scores = detector.score(actual=[1.0, 1.0], predicted=[1.0, 1.0])
+
+    assert len(scores) == 2
+    assert scores["anomaly_score"].tolist() == [0.0, 0.0]
+    assert not scores["is_anomaly"].any()
 
 
 def test_isolation_forest_detector_scores_feature_rows() -> None:
