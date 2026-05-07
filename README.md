@@ -19,6 +19,12 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 - Serve health checks, forecasts, anomaly scoring, and batch predictions through FastAPI.
 - Keep tests fast and independent from real datasets or trained model files.
 
+## Demo Results
+
+A local synthetic demo run using `data/raw/demo_energy_weather.csv` produced Ridge forecast metrics of MAE `49.7463`, RMSE `89.4063`, MAPE `4.7236`, and R2 `0.2259` on 394 test rows. These are synthetic demo-data results, not a real grid benchmark.
+
+The residual z-score anomaly baseline detected 5 anomalies but did not recover the injected anomaly labels well in the first demo run: precision `0.0`, recall `0.0`, macro F1 `0.4816`, confusion matrix `[[366, 5], [23, 0]]`. See [Results](docs/results.md) for the full context.
+
 ## Quickstart
 
 From the repository root in Windows PowerShell:
@@ -27,8 +33,16 @@ From the repository root in Windows PowerShell:
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
+python -m energy_forecasting_anomaly.data.generate_demo_data `
+  --output data/raw/demo_energy_weather.csv `
+  --start 2025-01-01 `
+  --periods 2160 `
+  --freq h `
+  --zone DE_DEMO `
+  --random-state 42 `
+  --anomaly-fraction 0.02
 python -m energy_forecasting_anomaly.training.pipeline `
-  --input data/raw/energy_weather.csv `
+  --input data/raw/demo_energy_weather.csv `
   --models-dir models `
   --metrics-dir reports/metrics `
   --forecast-horizon 24 `
@@ -41,6 +55,7 @@ uvicorn energy_forecasting_anomaly.api.app:app --reload
 ## Common Commands
 
 ```powershell
+python -m energy_forecasting_anomaly.data.generate_demo_data --output data/raw/demo_energy_weather.csv
 python -m pytest
 python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_weather.csv
 uvicorn energy_forecasting_anomaly.api.app:app --host 0.0.0.0 --port 8000
@@ -77,6 +92,8 @@ Runtime outputs are written to ignored paths and are not part of the repository:
 - `*.pkl`
 
 No real benchmark results are stored in this scaffold. Run training and evaluation locally to generate metrics for your own data.
+
+Synthetic demo-run metrics are documented in [Results](docs/results.md). Generated CSV files, trained models, and metrics JSON remain in ignored local paths.
 
 ## Documentation
 
