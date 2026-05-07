@@ -29,6 +29,34 @@ The demo run used Ridge regression with a 24-hour forecast horizon.
 
 Forecast metrics were written locally to `reports/metrics/forecast_ridge_h24.json`, which is ignored by Git.
 
+## Time-Series Backtesting
+
+Rolling-origin backtesting is more appropriate for time-series forecasting than a random split because each fold trains on earlier observations and evaluates on later observations. This better reflects the production forecasting problem, where future load values are not available at model-fit time.
+
+The local synthetic demo backtest used:
+
+- Input: `data/raw/demo_energy_weather.csv`
+- Zone: `DE_DEMO`
+- Generated rows: 2160
+- Model: Ridge regression
+- Forecast horizon: 24
+- Initial train size: 1000
+- Fold size: 168
+- Step size: 168
+- Fold count: 5
+- Random state: 42
+
+Aggregate rolling backtest metrics:
+
+| Metric | Value |
+| --- | ---: |
+| mean_mae | 46.1106 |
+| mean_rmse | 65.7001 |
+| mean_mape | 4.5168 |
+| mean_r2 | 0.3317 |
+
+Backtest metrics were written locally to `reports/metrics/backtest_ridge_h24.json`, which is ignored by Git.
+
 ## Anomaly Baseline
 
 The demo run used a residual z-score detector with threshold `3.0`.

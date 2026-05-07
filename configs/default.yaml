@@ -12,9 +12,17 @@ features:
 training:
   model: ridge
   test_size: 0.2
+  split_method: chronological
   random_state: 42
   models_dir: models
   metrics_dir: reports/metrics
+
+backtesting:
+  model: ridge
+  initial_train_size: 1000
+  fold_size: 168
+  step_size: 168
+  random_state: 42
 
 api:
   host: 0.0.0.0

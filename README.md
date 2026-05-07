@@ -13,6 +13,7 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 - Parse local energy and weather CSV files with schema and quality validation.
 - Build calendar, lag, rolling, and weather features for hourly load data.
 - Train Ridge and RandomForestRegressor baseline forecasting models.
+- Evaluate forecasts with chronological splits and rolling-origin backtesting.
 - Detect unusual behavior with residual z-scores or IsolationForest.
 - Evaluate forecasts and anomaly labels when labels are available.
 - Save models and metrics to ignored local artifact paths.
@@ -22,6 +23,8 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 ## Demo Results
 
 A local synthetic demo run using `data/raw/demo_energy_weather.csv` produced Ridge forecast metrics of MAE `49.7463`, RMSE `89.4063`, MAPE `4.7236`, and R2 `0.2259` on 394 test rows. These are synthetic demo-data results, not a real grid benchmark.
+
+Rolling-origin backtesting on the same synthetic demo dataset produced aggregate Ridge metrics of mean MAE `46.1106`, mean RMSE `65.7001`, mean MAPE `4.5168`, and mean R2 `0.3317` across 5 folds. Rolling-origin backtesting is the preferred evaluation mode for time-series forecasting because it trains on earlier rows and tests on later rows.
 
 The residual z-score anomaly baseline detected 5 anomalies but did not recover the injected anomaly labels well in the first demo run: precision `0.0`, recall `0.0`, macro F1 `0.4816`, confusion matrix `[[366, 5], [23, 0]]`. See [Results](docs/results.md) for the full context.
 
@@ -48,6 +51,16 @@ python -m energy_forecasting_anomaly.training.pipeline `
   --forecast-horizon 24 `
   --model ridge `
   --test-size 0.2 `
+  --split-method chronological `
+  --random-state 42
+python -m energy_forecasting_anomaly.evaluation.backtest `
+  --input data/raw/demo_energy_weather.csv `
+  --metrics-dir reports/metrics `
+  --forecast-horizon 24 `
+  --model ridge `
+  --initial-train-size 1000 `
+  --fold-size 168 `
+  --step-size 168 `
   --random-state 42
 uvicorn energy_forecasting_anomaly.api.app:app --reload
 ```
@@ -57,7 +70,8 @@ uvicorn energy_forecasting_anomaly.api.app:app --reload
 ```powershell
 python -m energy_forecasting_anomaly.data.generate_demo_data --output data/raw/demo_energy_weather.csv
 python -m pytest
-python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_weather.csv
+python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_weather.csv --split-method chronological
+python -m energy_forecasting_anomaly.evaluation.backtest --input data/raw/energy_weather.csv
 uvicorn energy_forecasting_anomaly.api.app:app --host 0.0.0.0 --port 8000
 docker compose up --build
 ```

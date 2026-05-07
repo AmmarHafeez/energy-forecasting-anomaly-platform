@@ -7,9 +7,11 @@ flowchart LR
     CSV["Local CSV files"] --> Parser["Data validation"]
     Parser --> Features["Feature generation"]
     Features --> Forecast["Forecast models"]
+    Features --> Backtest["Rolling-origin backtesting"]
     Forecast --> Residuals["Forecast residuals"]
     Residuals --> Anomaly["Anomaly detection"]
     Forecast --> Metrics["Forecast metrics"]
+    Backtest --> Metrics
     Anomaly --> Metrics
     Forecast --> Store["Ignored local model files"]
     Anomaly --> Store
@@ -22,8 +24,8 @@ flowchart LR
 - `features`: creates calendar, load lag, rolling, weather, and forecast target columns.
 - `models`: trains baseline regressors and persists model bundles with versioned metadata.
 - `anomaly`: scores residual z-scores and supports IsolationForest for feature-based anomaly detection.
-- `evaluation`: computes forecast and anomaly metrics and writes local JSON metrics.
-- `training`: provides the command-line pipeline for local training and evaluation.
+- `evaluation`: computes forecast and anomaly metrics, runs rolling-origin backtesting, and writes local JSON metrics.
+- `training`: provides the command-line pipeline for local training with chronological or random evaluation splits.
 - `api`: exposes health, forecast, anomaly, and batch prediction endpoints.
 - `monitoring`: computes lightweight reference statistics and drift summaries.
 

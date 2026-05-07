@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
@@ -25,6 +25,7 @@ from energy_forecasting_anomaly.features import (
 from energy_forecasting_anomaly.models import predict_forecast, save_model_bundle, train_forecaster
 
 LOGGER = logging.getLogger(__name__)
+SplitMethod = Literal["chronological", "random"]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -33,16 +34,36 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train local energy forecasting baselines.")
     parser.add_argument("--input", default="data/raw/energy_weather.csv", help="Input CSV path.")
     parser.add_argument("--models-dir", default="models", help="Directory for model files.")
-    parser.add_argument("--metrics-dir", default="reports/metrics", help="Directory for metrics JSON.")
-    parser.add_argument("--forecast-horizon", type=int, default=24, help="Forecast horizon in rows.")
+    parser.add_argument(
+        "--metrics-dir",
+        default="reports/metrics",
+        help="Directory for metrics JSON.",
+    )
+    parser.add_argument(
+        "--forecast-horizon",
+        type=int,
+        default=24,
+        help="Forecast horizon in rows.",
+    )
     parser.add_argument(
         "--model",
         choices=["ridge", "random_forest"],
         default="ridge",
         help="Forecasting model type.",
     )
-    parser.add_argument("--test-size", type=float, default=0.2, help="Ordered test split fraction.")
-    parser.add_argument("--random-state", type=int, default=42, help="Random seed for supported models.")
+    parser.add_argument("--test-size", type=float, default=0.2, help="Test split fraction.")
+    parser.add_argument(
+        "--split-method",
+        choices=["chronological", "random"],
+        default="chronological",
+        help="Evaluation split method. Use chronological for time-series forecasting.",
+    )
+    parser.add_argument(
+        "--random-state",
+        type=int,
+        default=42,
+        help="Random seed for supported models.",
+    )
     return parser.parse_args(argv)
 
 
@@ -55,7 +76,12 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Path]:
     feature_config = FeatureConfig(forecast_horizon=args.forecast_horizon)
     feature_frame = build_feature_frame(raw_frame, feature_config)
     supervised_frame, feature_names = build_supervised_frame(feature_frame, TARGET_COLUMN)
-    train_frame, test_frame = temporal_train_test_split(supervised_frame, args.test_size)
+    train_frame, test_frame = train_test_split_frame(
+        supervised_frame,
+        args.test_size,
+        split_method=getattr(args, "split_method", "chronological"),
+        random_state=args.random_state,
+    )
 
     forecast_bundle = train_forecaster(
         train_frame[feature_names],
@@ -79,12 +105,16 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Path]:
     train_predictions = predict_forecast(forecast_bundle, train_frame[feature_names])
     test_predictions = predict_forecast(forecast_bundle, test_frame[feature_names])
 
-    forecast_metric_values = forecast_metrics(test_frame[TARGET_COLUMN].to_numpy(), test_predictions)
+    forecast_metric_values = forecast_metrics(
+        test_frame[TARGET_COLUMN].to_numpy(),
+        test_predictions,
+    )
     write_json_metrics(
         {
             "model": args.model,
             "forecast_horizon": args.forecast_horizon,
             "test_size": args.test_size,
+            "split_method": getattr(args, "split_method", "chronological"),
             "row_counts": {"train": len(train_frame), "test": len(test_frame)},
             "metrics": forecast_metric_values,
         },
@@ -121,21 +151,61 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Path]:
     }
 
 
+def train_test_split_frame(
+    frame: pd.DataFrame,
+    test_size: float,
+    *,
+    split_method: SplitMethod = "chronological",
+    random_state: int = 42,
+    timestamp_column: str = "timestamp",
+    zone_column: str = "zone",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split supervised rows for evaluation."""
+
+    if not 0.0 < test_size < 1.0:
+        raise ValueError("test_size must be between 0 and 1.")
+
+    if split_method == "chronological":
+        ordered = sort_chronologically(frame, timestamp_column, zone_column)
+    elif split_method == "random":
+        ordered = frame.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+    else:
+        raise ValueError("split_method must be 'chronological' or 'random'.")
+
+    test_count = max(1, int(round(len(frame) * test_size)))
+    train_count = len(frame) - test_count
+    if train_count < 2:
+        raise ValueError("Not enough rows for a train/test split.")
+    train_frame = ordered.iloc[:train_count].copy()
+    test_frame = ordered.iloc[train_count:].copy()
+    return train_frame, test_frame
+
+
 def temporal_train_test_split(
     frame: pd.DataFrame,
     test_size: float,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split rows in timestamp order without shuffling."""
 
-    if not 0.0 < test_size < 1.0:
-        raise ValueError("test_size must be between 0 and 1.")
-    test_count = max(1, int(round(len(frame) * test_size)))
-    train_count = len(frame) - test_count
-    if train_count < 2:
-        raise ValueError("Not enough rows for a train/test split.")
-    train_frame = frame.iloc[:train_count].copy()
-    test_frame = frame.iloc[train_count:].copy()
-    return train_frame, test_frame
+    return train_test_split_frame(frame, test_size, split_method="chronological")
+
+
+def sort_chronologically(
+    frame: pd.DataFrame,
+    timestamp_column: str = "timestamp",
+    zone_column: str = "zone",
+) -> pd.DataFrame:
+    """Sort rows by timestamp, then zone when both columns are available."""
+
+    if timestamp_column not in frame.columns:
+        raise ValueError(
+            f"Missing timestamp column required for chronological split: {timestamp_column}"
+        )
+
+    sort_columns = [timestamp_column]
+    if zone_column in frame.columns:
+        sort_columns.append(zone_column)
+    return frame.sort_values(sort_columns).reset_index(drop=True)
 
 
 def _find_label_column(frame: pd.DataFrame) -> str | None:
