@@ -1,0 +1,21 @@
+data:
+  input_path: data/raw/energy_weather.csv
+  timestamp_column: timestamp
+  zone_column: zone
+  load_column: load_mw
+
+features:
+  forecast_horizon: 24
+  lag_periods: [1, 24, 168]
+  rolling_windows: [24, 168]
+
+training:
+  model: ridge
+  test_size: 0.2
+  random_state: 42
+  models_dir: models
+  metrics_dir: reports/metrics
+
+api:
+  host: 0.0.0.0
+  port: 8000

@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ENERGY_MODEL_PATH: /app/models/forecast_ridge_h24.joblib
+      ENERGY_ANOMALY_MODEL_PATH: /app/models/anomaly_residual_zscore.joblib
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
