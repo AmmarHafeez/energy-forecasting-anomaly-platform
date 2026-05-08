@@ -15,6 +15,7 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 - Train Ridge and RandomForestRegressor baseline forecasting models.
 - Evaluate forecasts with chronological splits and rolling-origin backtesting.
 - Detect unusual behavior with residual z-scores, robust residual scores, or IsolationForest.
+- Tune anomaly thresholds on validation data before testing held-out rows.
 - Evaluate forecasts and anomaly labels when labels are available.
 - Save models and metrics to ignored local artifact paths.
 - Serve health checks, forecasts, anomaly scoring, and batch predictions through FastAPI.
@@ -29,6 +30,8 @@ Rolling-origin backtesting on the same synthetic demo dataset produced aggregate
 The residual z-score anomaly baseline detected 5 anomalies but did not recover the injected anomaly labels well in the first demo run: precision `0.0`, recall `0.0`, macro F1 `0.4816`, confusion matrix `[[366, 5], [23, 0]]`. See [Results](docs/results.md) for the full context.
 
 The anomaly comparison run showed the residual methods were too conservative on this split, while IsolationForest reached recall `0.7391` with many false positives. These are synthetic demo-data results, not real grid benchmark results.
+
+The anomaly tuning run selected thresholds on a validation period, then evaluated a held-out test period. None of the tuned methods recovered labeled test anomalies, which shows the risk of non-generalization in anomaly detection even when validation labels are available.
 
 ## Quickstart
 
@@ -73,6 +76,16 @@ python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies `
   --test-size 0.2 `
   --methods residual_zscore robust_residual isolation_forest `
   --random-state 42
+python -m energy_forecasting_anomaly.evaluation.tune_anomalies `
+  --input data/raw/demo_energy_weather.csv `
+  --metrics-dir reports/metrics `
+  --forecast-horizon 24 `
+  --model ridge `
+  --split-method chronological `
+  --validation-size 0.2 `
+  --test-size 0.2 `
+  --methods residual_zscore robust_residual isolation_forest `
+  --random-state 42
 uvicorn energy_forecasting_anomaly.api.app:app --reload
 ```
 
@@ -84,6 +97,7 @@ python -m pytest
 python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_weather.csv --split-method chronological
 python -m energy_forecasting_anomaly.evaluation.backtest --input data/raw/energy_weather.csv
 python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies --input data/raw/energy_weather.csv
+python -m energy_forecasting_anomaly.evaluation.tune_anomalies --input data/raw/energy_weather.csv
 uvicorn energy_forecasting_anomaly.api.app:app --host 0.0.0.0 --port 8000
 docker compose up --build
 ```

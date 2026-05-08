@@ -104,3 +104,42 @@ Anomaly comparison metrics were written locally to `reports/metrics/anomaly_comp
 | `isolation_forest` | contamination `auto`, 15 features | 248 | 0.0685 | 0.7391 | 0.3335 | `[[140, 231], [6, 17]]` |
 
 The residual methods were too conservative in this split and missed all labeled anomalies. IsolationForest achieved much higher recall, finding 17 of 23 labeled anomalies, but produced many false positives. These results are useful for comparing baseline behavior on synthetic demo data, but they are not real grid benchmark results.
+
+## Anomaly Threshold Tuning
+
+Anomaly threshold tuning was run on the synthetic demo dataset with a chronological train, validation, and test split. The forecast model fits on training rows, anomaly thresholds or contamination settings are selected on validation rows, and the selected settings are evaluated on held-out test rows.
+
+Configuration:
+
+- Input: `data/raw/demo_energy_weather.csv`
+- Model: Ridge regression
+- Forecast horizon: 24
+- Split method: chronological
+- Validation size: 0.2
+- Test size: 0.2
+- Train rows: 1180
+- Validation rows: 394
+- Test rows: 394
+- Random state: 42
+- Selection metric: macro F1
+- Labels available: true
+
+Anomaly tuning metrics were written locally to `reports/metrics/anomaly_tuning_h24.json`, which is ignored by Git.
+
+Selected configurations:
+
+| Method | Selected configuration |
+| --- | --- |
+| `residual_zscore` | threshold `1.5`, label-based selection `true` |
+| `robust_residual` | threshold `2.0`, label-based selection `true` |
+| `isolation_forest` | contamination `0.01`, label-based selection `true` |
+
+Held-out test results:
+
+| Method | Detected | Labeled anomalies | Precision | Recall | Macro F1 | Confusion matrix |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `residual_zscore` | 18 | 23 | 0.0 | 0.0 | 0.4726 | `[[353, 18], [23, 0]]` |
+| `robust_residual` | 25 | 23 | 0.0 | 0.0 | 0.4676 | `[[346, 25], [23, 0]]` |
+| `isolation_forest` | 59 | 23 | 0.0 | 0.0 | 0.4419 | `[[312, 59], [23, 0]]` |
+
+Threshold tuning selected configurations on the validation split, but none of the tuned methods recovered labeled anomalies in the held-out test split. This demonstrates why anomaly calibration needs separate validation and test periods: a setting can look preferable on validation data and still fail to generalize to the next time period. These are synthetic demo-data results, not real grid benchmark results.

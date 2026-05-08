@@ -82,6 +82,25 @@ Anomaly comparison metrics are written locally to `reports/metrics/anomaly_compa
 
 For the local synthetic demo comparison, `residual_zscore` and `robust_residual` missed the labeled anomalies on this split. `isolation_forest` reached recall `0.7391` but detected 248 anomalies, including many false positives. These are synthetic demo-data results, not real grid benchmark results.
 
+Tune anomaly detector thresholds on validation data and evaluate held-out test rows:
+
+```powershell
+python -m energy_forecasting_anomaly.evaluation.tune_anomalies `
+  --input data/raw/demo_energy_weather.csv `
+  --metrics-dir reports/metrics `
+  --forecast-horizon 24 `
+  --model ridge `
+  --split-method chronological `
+  --validation-size 0.2 `
+  --test-size 0.2 `
+  --methods residual_zscore robust_residual isolation_forest `
+  --random-state 42
+```
+
+Anomaly tuning metrics are written locally to `reports/metrics/anomaly_tuning_h24.json`, which is ignored by Git.
+
+For the local synthetic demo tuning run, validation selected thresholds/configurations for all three methods, but none recovered labeled anomalies in the held-out test split. This is a synthetic demo-data result, not a real grid benchmark, and it illustrates why anomaly calibration should keep validation and test periods separate.
+
 Run tests:
 
 ```powershell

@@ -11,9 +11,11 @@ flowchart LR
     Forecast --> Residuals["Forecast residuals"]
     Residuals --> Anomaly["Anomaly detection"]
     Features --> Anomaly
+    Anomaly --> Calibration["Anomaly calibration"]
     Forecast --> Metrics["Forecast metrics"]
     Backtest --> Metrics
     Anomaly --> Metrics
+    Calibration --> Metrics
     Forecast --> Store["Ignored local model files"]
     Anomaly --> Store
     Store --> API["FastAPI service"]
@@ -25,7 +27,7 @@ flowchart LR
 - `features`: creates calendar, load lag, rolling, weather, and forecast target columns.
 - `models`: trains baseline regressors and persists model bundles with versioned metadata.
 - `anomaly`: scores residual z-scores, robust residual scores, and IsolationForest feature anomalies.
-- `evaluation`: computes forecast and anomaly metrics, runs rolling-origin backtesting, compares anomaly methods, and writes local JSON metrics.
+- `evaluation`: computes forecast and anomaly metrics, runs rolling-origin backtesting, compares anomaly methods, tunes anomaly thresholds, and writes local JSON metrics.
 - `training`: provides the command-line pipeline for local training with chronological or random evaluation splits.
 - `api`: exposes health, forecast, anomaly, and batch prediction endpoints.
 - `monitoring`: computes lightweight reference statistics and drift summaries.
