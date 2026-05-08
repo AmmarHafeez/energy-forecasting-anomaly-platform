@@ -17,6 +17,7 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 - Detect unusual behavior with residual z-scores, robust residual scores, or IsolationForest.
 - Tune anomaly thresholds on validation data before testing held-out rows.
 - Evaluate forecasts and anomaly labels when labels are available.
+- Build sample API request payloads from local CSV files.
 - Save models and metrics to ignored local artifact paths.
 - Serve health checks, forecasts, anomaly scoring, and batch predictions through FastAPI.
 - Keep tests fast and independent from real datasets or trained model files.
@@ -86,6 +87,11 @@ python -m energy_forecasting_anomaly.evaluation.tune_anomalies `
   --test-size 0.2 `
   --methods residual_zscore robust_residual isolation_forest `
   --random-state 42
+python -m energy_forecasting_anomaly.api.make_payload `
+  --input data/raw/demo_energy_weather.csv `
+  --output reports/artifacts/sample_api_payload.json `
+  --forecast-horizon 24 `
+  --records 3
 uvicorn energy_forecasting_anomaly.api.app:app --reload
 ```
 
@@ -98,8 +104,26 @@ python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_w
 python -m energy_forecasting_anomaly.evaluation.backtest --input data/raw/energy_weather.csv
 python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies --input data/raw/energy_weather.csv
 python -m energy_forecasting_anomaly.evaluation.tune_anomalies --input data/raw/energy_weather.csv
+python -m energy_forecasting_anomaly.api.make_payload `
+  --input data/raw/energy_weather.csv `
+  --output reports/artifacts/sample_api_payload.json
 uvicorn energy_forecasting_anomaly.api.app:app --host 0.0.0.0 --port 8000
 docker compose up --build
+```
+
+## API Smoke Requests
+
+After starting the API, use PowerShell to call health and forecast endpoints:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri http://127.0.0.1:8000/health
+$payload = Get-Content reports/artifacts/sample_api_payload.json | ConvertFrom-Json
+$forecastBody = $payload.forecast_request | ConvertTo-Json -Depth 20
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:8000/forecast `
+  -ContentType "application/json" `
+  -Body $forecastBody
 ```
 
 ## Data Schema

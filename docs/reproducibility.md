@@ -101,6 +101,18 @@ Anomaly tuning metrics are written locally to `reports/metrics/anomaly_tuning_h2
 
 For the local synthetic demo tuning run, validation selected thresholds/configurations for all three methods, but none recovered labeled anomalies in the held-out test split. This is a synthetic demo-data result, not a real grid benchmark, and it illustrates why anomaly calibration should keep validation and test periods separate.
 
+Generate sample API request payloads:
+
+```powershell
+python -m energy_forecasting_anomaly.api.make_payload `
+  --input data/raw/demo_energy_weather.csv `
+  --output reports/artifacts/sample_api_payload.json `
+  --forecast-horizon 24 `
+  --records 3
+```
+
+Generated request JSON remains local under `reports/artifacts/`, which is ignored by Git.
+
 Run tests:
 
 ```powershell
@@ -111,6 +123,19 @@ Start the API:
 
 ```powershell
 uvicorn energy_forecasting_anomaly.api.app:app --reload
+```
+
+Call API endpoints with PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri http://127.0.0.1:8000/health
+$payload = Get-Content reports/artifacts/sample_api_payload.json | ConvertFrom-Json
+$forecastBody = $payload.forecast_request | ConvertTo-Json -Depth 20
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:8000/forecast `
+  -ContentType "application/json" `
+  -Body $forecastBody
 ```
 
 Generated data, model, and report files remain in ignored local paths.
