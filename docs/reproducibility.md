@@ -15,6 +15,24 @@ Place your local CSV at:
 data/raw/energy_weather.csv
 ```
 
+Normalize a real local export when its columns do not already match the canonical schema:
+
+```powershell
+python -m energy_forecasting_anomaly.data.normalize_real_csv `
+  --input data/raw/real_energy_weather_export.csv `
+  --output data/processed/energy_weather_normalized.csv `
+  --timestamp-column time `
+  --zone-column bidding_zone `
+  --load-column load `
+  --temperature-column temperature `
+  --wind-column wind_speed `
+  --solar-column solar_radiation `
+  --zone-value DE_LU
+```
+
+If the source file has no zone column, omit `--zone-column` and provide `--zone-value`.
+The normalized CSV is written under `data/processed/`, which is ignored by Git.
+
 Generate deterministic demo data:
 
 ```powershell

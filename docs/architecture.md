@@ -4,7 +4,9 @@ The platform is organized as a small Python package with separate modules for in
 
 ```mermaid
 flowchart LR
-    CSV["Local CSV files"] --> Parser["Data validation"]
+    CSV["Local CSV files"] --> Normalizer["Schema normalization"]
+    Normalizer --> Parser["Data validation"]
+    CSV --> Parser
     Parser --> Features["Feature generation"]
     Features --> Forecast["Forecast models"]
     Features --> Backtest["Rolling-origin backtesting"]
@@ -24,7 +26,7 @@ flowchart LR
 
 ## Module Responsibilities
 
-- `data`: reads local CSV files, validates timestamps and numeric measurements, checks duplicate `(zone, timestamp)` pairs, and returns sorted data frames.
+- `data`: normalizes local CSV exports, validates timestamps and numeric measurements, checks duplicate `(zone, timestamp)` pairs, and returns sorted data frames.
 - `features`: creates calendar, load lag, rolling, weather, and forecast target columns.
 - `models`: trains baseline regressors and persists model bundles with versioned metadata.
 - `anomaly`: scores residual z-scores, robust residual scores, and IsolationForest feature anomalies.

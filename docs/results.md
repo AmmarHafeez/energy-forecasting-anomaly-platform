@@ -2,6 +2,16 @@
 
 These results are from a local synthetic demo-data run. They are not a real grid benchmark.
 
+## Real Local Data
+
+The published metrics below use synthetic demo data only. For real local CSV exports, first
+normalize the file into the canonical schema, then run training, backtesting, and anomaly
+evaluation locally. Real-data metrics should be generated from the normalized local CSV and
+kept in ignored artifact paths.
+
+Raw and processed data remain local under `data/raw/` and `data/processed/`, which are ignored
+by Git.
+
 ## Demo Data
 
 - Generated file: `data/raw/demo_energy_weather.csv`

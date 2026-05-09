@@ -11,6 +11,7 @@ Short-term load forecasts help grid operators, facilities teams, and energy anal
 ## Key Capabilities
 
 - Parse local energy and weather CSV files with schema and quality validation.
+- Normalize real local CSV exports into the canonical project schema.
 - Build calendar, lag, rolling, and weather features for hourly load data.
 - Train Ridge and RandomForestRegressor baseline forecasting models.
 - Evaluate forecasts with chronological splits and rolling-origin backtesting.
@@ -140,6 +141,27 @@ The default parser expects one row per timestamp and zone:
 | `solar_radiation_wm2` | numeric | Solar radiation in watts per square meter. |
 
 Rows are sorted by `zone` and `timestamp`. Missing values, invalid timestamps, non-numeric measurement values, and duplicate `(zone, timestamp)` pairs are rejected.
+
+## Using Real Local Data
+
+If a local export uses different column names, normalize it before training or evaluation:
+
+```powershell
+python -m energy_forecasting_anomaly.data.normalize_real_csv `
+  --input data/raw/real_energy_weather_export.csv `
+  --output data/processed/energy_weather_normalized.csv `
+  --timestamp-column time `
+  --zone-column bidding_zone `
+  --load-column load `
+  --temperature-column temperature `
+  --wind-column wind_speed `
+  --solar-column solar_radiation `
+  --zone-value DE_LU
+```
+
+When the source file has no zone column, omit `--zone-column` and provide `--zone-value`.
+The normalized output is validated with the same parser used by the training and evaluation
+commands. Raw and processed data paths are ignored by Git.
 
 ## Artifact Policy
 
