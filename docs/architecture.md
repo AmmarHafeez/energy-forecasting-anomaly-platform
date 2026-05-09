@@ -1,40 +1,46 @@
 # Architecture
 
-The platform is organized as a small Python package with separate modules for ingestion, feature engineering, modeling, anomaly detection, evaluation, monitoring helpers, training, and API serving.
+The platform is a small local-first Python package. It separates ingestion, feature generation,
+modeling, anomaly detection, evaluation, API serving, and lightweight monitoring helpers.
 
 ```mermaid
 flowchart LR
-    CSV["Local CSV files"] --> Normalizer["Schema normalization"]
-    Normalizer --> Parser["Data validation"]
-    CSV --> Parser
-    Parser --> Features["Feature generation"]
-    Features --> Forecast["Forecast models"]
+    Raw["Local CSV exports"] --> Normalize["Schema normalization"]
+    Raw --> Parser["Canonical CSV validation"]
+    Normalize --> Parser
+    Parser --> Features["Calendar, lag, rolling, weather features"]
+    Features --> Train["Forecast training"]
     Features --> Backtest["Rolling-origin backtesting"]
-    Forecast --> Residuals["Forecast residuals"]
-    Residuals --> Anomaly["Anomaly detection"]
+    Train --> ModelStore["Ignored model files"]
+    Train --> ForecastMetrics["Forecast metrics JSON"]
+    Backtest --> ForecastMetrics
+    Train --> Residuals["Forecast residuals"]
+    Residuals --> Anomaly["Anomaly comparison"]
     Features --> Anomaly
-    Anomaly --> Calibration["Anomaly calibration"]
-    Forecast --> Metrics["Forecast metrics"]
-    Backtest --> Metrics
-    Anomaly --> Metrics
-    Calibration --> Metrics
+    Anomaly --> Tuning["Anomaly tuning"]
+    Anomaly --> AnomalyMetrics["Anomaly metrics JSON"]
+    Tuning --> AnomalyMetrics
     Features --> Payload["API payload builder"]
-    Forecast --> Store["Ignored local model files"]
-    Anomaly --> Store
-    Store --> API["FastAPI service"]
+    ModelStore --> API["FastAPI service"]
+    Payload --> API
 ```
 
-## Module Responsibilities
+## Component Responsibilities
 
-- `data`: normalizes local CSV exports, validates timestamps and numeric measurements, checks duplicate `(zone, timestamp)` pairs, and returns sorted data frames.
+- `data`: validates canonical CSV files and normalizes real local exports into the canonical
+  schema.
 - `features`: creates calendar, load lag, rolling, weather, and forecast target columns.
-- `models`: trains baseline regressors and persists model bundles with versioned metadata.
-- `anomaly`: scores residual z-scores, robust residual scores, and IsolationForest feature anomalies.
-- `evaluation`: computes forecast and anomaly metrics, runs rolling-origin backtesting, compares anomaly methods, tunes anomaly thresholds, and writes local JSON metrics.
-- `training`: provides the command-line pipeline for local training with chronological or random evaluation splits.
-- `api`: exposes health, forecast, anomaly, and batch prediction endpoints, plus a local payload builder for sample requests.
+- `models`: trains Ridge or RandomForestRegressor baselines and persists model bundles.
+- `anomaly`: scores residual z-scores, robust residual scores, and IsolationForest outputs.
+- `evaluation`: computes metrics, runs rolling backtests, compares anomaly methods, and tunes
+  anomaly settings.
+- `training`: provides the local training pipeline with chronological or random split support.
+- `api`: exposes health, forecast, anomaly, and batch prediction endpoints, and builds sample
+  request payloads.
 - `monitoring`: computes lightweight reference statistics and drift summaries.
 
 ## Runtime Artifacts
 
-Training outputs are written to ignored local folders such as `models/` and `reports/metrics/`. Raw data, processed data, trained models, and metrics are intentionally excluded from version control.
+Raw data, processed data, trained models, metrics JSON, request payloads, figures, and reports are
+written to ignored local paths such as `data/`, `models/`, and `reports/`. The repository keeps the
+code, configuration, documentation, and tiny synthetic tests only.

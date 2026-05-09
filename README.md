@@ -1,48 +1,46 @@
 # Energy Forecasting & Anomaly Detection Platform
 
-A local-first Python project for short-term energy load forecasting and anomaly detection from energy and weather time-series CSV files.
-
-The project is designed for practical MLOps workflows: validated local data ingestion, feature engineering, baseline model training, anomaly scoring, evaluation, API serving, containerization, CI, and fast tests based on tiny synthetic inputs.
+Local-first Python project for short-term energy load forecasting and anomaly detection from
+energy and weather time-series CSV files. The project validates and normalizes local data,
+builds time-series features, trains baseline models, evaluates chronological forecasts, compares
+anomaly detectors, and serves predictions through FastAPI.
 
 ## Why This Matters
 
-Short-term load forecasts help grid operators, facilities teams, and energy analysts plan capacity, investigate demand changes, and catch unusual consumption patterns before they become operational problems. A local-first setup keeps raw data and model outputs under local control while still providing a repeatable project structure.
+Short-term load forecasts help energy teams plan capacity, evaluate demand shifts, and identify
+unusual consumption patterns. A local-first workflow keeps raw data, trained models, metrics, and
+request payloads on the user's machine while still providing a repeatable MLOps-style structure.
 
 ## Key Capabilities
 
-- Parse local energy and weather CSV files with schema and quality validation.
+- Generate deterministic synthetic demo energy/weather data with optional anomaly labels.
 - Normalize real local CSV exports into the canonical project schema.
-- Build calendar, lag, rolling, and weather features for hourly load data.
 - Train Ridge and RandomForestRegressor baseline forecasting models.
 - Evaluate forecasts with chronological splits and rolling-origin backtesting.
-- Detect unusual behavior with residual z-scores, robust residual scores, or IsolationForest.
+- Compare residual z-score, robust residual, and IsolationForest anomaly methods.
 - Tune anomaly thresholds on validation data before testing held-out rows.
-- Evaluate forecasts and anomaly labels when labels are available.
-- Build sample API request payloads from local CSV files.
-- Save models and metrics to ignored local artifact paths.
-- Serve health checks, forecasts, anomaly scoring, and batch predictions through FastAPI.
-- Keep tests fast and independent from real datasets or trained model files.
+- Generate sample API payload JSON from local CSV files.
+- Serve health checks, forecasts, anomaly scoring, and batch predictions with FastAPI.
+- Run through Docker, Docker Compose, GitHub Actions CI, and fast synthetic-data tests.
 
-## Demo Results
+## Results Summary
 
-A local synthetic demo run using `data/raw/demo_energy_weather.csv` produced Ridge forecast metrics of MAE `49.7463`, RMSE `89.4063`, MAPE `4.7236`, and R2 `0.2259` on 394 test rows. These are synthetic demo-data results, not a real grid benchmark.
+These are local synthetic demo-data results from `data/raw/demo_energy_weather.csv`, not real grid
+benchmark results. Full context is in [Results](docs/results.md).
 
-Rolling-origin backtesting on the same synthetic demo dataset produced aggregate Ridge metrics of mean MAE `46.1106`, mean RMSE `65.7001`, mean MAPE `4.5168`, and mean R2 `0.3317` across 5 folds. Rolling-origin backtesting is the preferred evaluation mode for time-series forecasting because it trains on earlier rows and tests on later rows.
+| Area | Configuration | Documented result |
+| --- | --- | --- |
+| Forecast split | Ridge, 24-hour horizon, chronological split, 394 test rows | MAE `49.7463`, RMSE `89.4063`, MAPE `4.7236`, R2 `0.2259` |
+| Rolling backtest | Ridge, 5 rolling-origin folds | mean MAE `46.1106`, mean RMSE `65.7001`, mean MAPE `4.5168`, mean R2 `0.3317` |
+| Anomaly comparison | Residual z-score, robust residual, IsolationForest | Residual methods missed labeled anomalies; IsolationForest reached recall `0.7391` with many false positives |
+| Anomaly tuning | Validation-selected settings, held-out test period | Tuned methods did not recover labeled test anomalies, showing non-generalization risk |
 
-The residual z-score anomaly baseline detected 5 anomalies but did not recover the injected anomaly labels well in the first demo run: precision `0.0`, recall `0.0`, macro F1 `0.4816`, confusion matrix `[[366, 5], [23, 0]]`. See [Results](docs/results.md) for the full context.
+## Common Commands
 
-The anomaly comparison run showed the residual methods were too conservative on this split, while IsolationForest reached recall `0.7391` with many false positives. These are synthetic demo-data results, not real grid benchmark results.
-
-The anomaly tuning run selected thresholds on a validation period, then evaluated a held-out test period. None of the tuned methods recovered labeled test anomalies, which shows the risk of non-generalization in anomaly detection even when validation labels are available.
-
-## Quickstart
-
-From the repository root in Windows PowerShell:
+Run from the repository root in Windows PowerShell after creating an environment and installing
+the project dependencies.
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[test]"
 python -m energy_forecasting_anomaly.data.generate_demo_data `
   --output data/raw/demo_energy_weather.csv `
   --start 2025-01-01 `
@@ -51,6 +49,18 @@ python -m energy_forecasting_anomaly.data.generate_demo_data `
   --zone DE_DEMO `
   --random-state 42 `
   --anomaly-fraction 0.02
+
+python -m energy_forecasting_anomaly.data.normalize_real_csv `
+  --input data/raw/real_energy_weather_export.csv `
+  --output data/processed/energy_weather_normalized.csv `
+  --timestamp-column time `
+  --zone-column bidding_zone `
+  --load-column load `
+  --temperature-column temperature `
+  --wind-column wind_speed `
+  --solar-column solar_radiation `
+  --zone-value DE_LU
+
 python -m energy_forecasting_anomaly.training.pipeline `
   --input data/raw/demo_energy_weather.csv `
   --models-dir models `
@@ -60,6 +70,7 @@ python -m energy_forecasting_anomaly.training.pipeline `
   --test-size 0.2 `
   --split-method chronological `
   --random-state 42
+
 python -m energy_forecasting_anomaly.evaluation.backtest `
   --input data/raw/demo_energy_weather.csv `
   --metrics-dir reports/metrics `
@@ -69,6 +80,7 @@ python -m energy_forecasting_anomaly.evaluation.backtest `
   --fold-size 168 `
   --step-size 168 `
   --random-state 42
+
 python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies `
   --input data/raw/demo_energy_weather.csv `
   --metrics-dir reports/metrics `
@@ -78,6 +90,7 @@ python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies `
   --test-size 0.2 `
   --methods residual_zscore robust_residual isolation_forest `
   --random-state 42
+
 python -m energy_forecasting_anomaly.evaluation.tune_anomalies `
   --input data/raw/demo_energy_weather.csv `
   --metrics-dir reports/metrics `
@@ -88,28 +101,16 @@ python -m energy_forecasting_anomaly.evaluation.tune_anomalies `
   --test-size 0.2 `
   --methods residual_zscore robust_residual isolation_forest `
   --random-state 42
+
 python -m energy_forecasting_anomaly.api.make_payload `
   --input data/raw/demo_energy_weather.csv `
   --output reports/artifacts/sample_api_payload.json `
   --forecast-horizon 24 `
   --records 3
+
 uvicorn energy_forecasting_anomaly.api.app:app --reload
-```
-
-## Common Commands
-
-```powershell
-python -m energy_forecasting_anomaly.data.generate_demo_data --output data/raw/demo_energy_weather.csv
-python -m pytest
-python -m energy_forecasting_anomaly.training.pipeline --input data/raw/energy_weather.csv --split-method chronological
-python -m energy_forecasting_anomaly.evaluation.backtest --input data/raw/energy_weather.csv
-python -m energy_forecasting_anomaly.evaluation.evaluate_anomalies --input data/raw/energy_weather.csv
-python -m energy_forecasting_anomaly.evaluation.tune_anomalies --input data/raw/energy_weather.csv
-python -m energy_forecasting_anomaly.api.make_payload `
-  --input data/raw/energy_weather.csv `
-  --output reports/artifacts/sample_api_payload.json
-uvicorn energy_forecasting_anomaly.api.app:app --host 0.0.0.0 --port 8000
 docker compose up --build
+python -m pytest
 ```
 
 ## API Smoke Requests
@@ -129,7 +130,7 @@ Invoke-RestMethod `
 
 ## Data Schema
 
-The default parser expects one row per timestamp and zone:
+The canonical CSV schema is:
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -140,32 +141,12 @@ The default parser expects one row per timestamp and zone:
 | `wind_speed_mps` | numeric | Wind speed in meters per second. |
 | `solar_radiation_wm2` | numeric | Solar radiation in watts per square meter. |
 
-Rows are sorted by `zone` and `timestamp`. Missing values, invalid timestamps, non-numeric measurement values, and duplicate `(zone, timestamp)` pairs are rejected.
-
-## Using Real Local Data
-
-If a local export uses different column names, normalize it before training or evaluation:
-
-```powershell
-python -m energy_forecasting_anomaly.data.normalize_real_csv `
-  --input data/raw/real_energy_weather_export.csv `
-  --output data/processed/energy_weather_normalized.csv `
-  --timestamp-column time `
-  --zone-column bidding_zone `
-  --load-column load `
-  --temperature-column temperature `
-  --wind-column wind_speed `
-  --solar-column solar_radiation `
-  --zone-value DE_LU
-```
-
-When the source file has no zone column, omit `--zone-column` and provide `--zone-value`.
-The normalized output is validated with the same parser used by the training and evaluation
-commands. Raw and processed data paths are ignored by Git.
+Rows are sorted by `zone` and `timestamp`. Missing values, invalid timestamps, non-numeric
+measurements, and duplicate `(zone, timestamp)` pairs are rejected.
 
 ## Artifact Policy
 
-Runtime outputs are written to ignored paths and are not part of the repository:
+Runtime outputs are local and ignored by Git:
 
 - `data/raw/`
 - `data/interim/`
@@ -177,9 +158,9 @@ Runtime outputs are written to ignored paths and are not part of the repository:
 - `*.joblib`
 - `*.pkl`
 
-No real benchmark results are stored in this scaffold. Run training and evaluation locally to generate metrics for your own data.
-
-Synthetic demo-run metrics are documented in [Results](docs/results.md). Generated CSV files, trained models, and metrics JSON remain in ignored local paths.
+No raw data, processed data, trained models, generated metrics JSON, generated request payloads,
+reports, or figures are intended to be committed. Real-data metrics should be generated locally
+after normalizing a real CSV.
 
 ## Documentation
 
