@@ -1,5 +1,7 @@
 # Energy Forecasting & Anomaly Detection Platform
 
+[![tests](https://github.com/AmmarHafeez/energy-forecasting-anomaly-platform/actions/workflows/tests.yml/badge.svg)](https://github.com/AmmarHafeez/energy-forecasting-anomaly-platform/actions/workflows/tests.yml)
+
 Local-first Python project for short-term energy load forecasting and anomaly detection from
 energy and weather time-series CSV files. The project validates and normalizes local data,
 builds time-series features, trains baseline models, evaluates chronological forecasts, compares
